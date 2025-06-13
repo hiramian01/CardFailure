@@ -3,8 +3,6 @@ import time
 from datetime import datetime, timedelta
 import requests
 import getpass
-import keyboard
-
 
 
 def get_credentials():
@@ -43,7 +41,7 @@ def map_parent_child(circuits):
         parent_list = circuit.get("parentCircuitList", {})
 
         #get the parentCircuit list from above
-        parent_array = parent_list.get("circuitName")
+        parent_array = parent_list.get("parentCircuit")
 
         #if parentCircuit exists and is non empty list, extract Name
         if isinstance(parent_array, list) and parent_array:
@@ -121,13 +119,13 @@ def fetch_endpoints(circuit_id):
         #navigate to portRef block for a and z end
         aEnd = data["circuitData"]["circuitLst"][0]["circuit"][0]["aEnd"][0]["portChannel"][0]["portRef"][0]
         zEnd = data["circuitData"]["circuitLst"][0]["circuit"][0]["zEnd"][0]["portChannel"][0]["portRef"][0]
-        print(aEnd)
-        print(zEnd)
+        print('A Endpoint Raw Info:\n', aEnd, '\n')
+        print('Z Endpoint Raw Info:\n', zEnd, '\n')
         #extract details using helper function
         aEndInfo = extract_endpoint_info(aEnd)
         zEndInfo = extract_endpoint_info(zEnd)
-        print(aEndInfo)
-        print(zEndInfo)
+        print('A Extracted Info:\n', aEndInfo, '\n')
+        print('Z Extracted Info:\n', zEndInfo, '\n')
 
         print(f"\nCircuit ID: {circuit_id}")
 
@@ -138,6 +136,7 @@ def fetch_endpoints(circuit_id):
         print("Z-End Info:")
         for k, v in zEndInfo.items():
             print(f"  {k}:  {v}")
+        print('\n')
 
     except (KeyError, IndexError):
         print(f"\nCircuit ID: {circuit_id} - Endpoint data N/A")
@@ -178,7 +177,7 @@ def main():
     print(top_circuits)
 
     #Step 5: Get endpoint info and print
-    print("\nEndpoint details for top circuits:")
+    print("\nEndpoint details for top circuits:\n")
     for circuit_id in top_circuits:
         fetch_endpoints(circuit_id)
 
