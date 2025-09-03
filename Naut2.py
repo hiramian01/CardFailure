@@ -3,7 +3,6 @@ import time
 from datetime import datetime, timedelta
 import requests
 import getpass
-import re
 from collections import defaultdict
 
 
@@ -72,48 +71,47 @@ def endpoint_info(endpoint):
 
 
 
-def rider_info(riders, username, password, seen_trail_ids=None, level=1):
-    if not riders:
-        print("No rider circuits found.")
-        return
+def build_circuit_tree(trail_name, username, password, seen_trail_ids=None, level=0):
     
     if seen_trail_ids is None:
         seen_trail_ids = set()
 
     indent = "  " * level
-    print(f"\n{indent}==== Rider Level {level} =====")
+    if trail_name in seen_trail_ids:
+        return None #avoid duplicate 
+    seen_trail_ids.add(trail_name)
+
+    payload = {"trailName": trail_name}
+    try:
+        response = fetch_circuit(username, password, payload)
+        trail_data = response.get("trail", {})
+        riders = response.get("riderInformation", [])
+
+        circuit = {
+            "circuit_id": trail_name,
+            "endpoint_info": endpoint_info(trail_data),
+            "riders": []
+        }
 
 
-    for rider in riders:
-        # print(rider)
-        trail_id = rider.get("trailId")
-        trail_name = rider.get("trailName")
-        parent_name = rider.get("parentCircuitName")
+        for rider in riders:
+            rider_name = rider.get("trailName")
+            if rider_name:
+                nested = build_circuit_tree(rider_name, username, password, seen_trail_ids, level + 1)
+                if nested:
+                    circuit["riders"].append(nested)
 
-        if trail_id and trail_id not in seen_trail_ids:
-            seen_trail_ids.add(trail_id)
+        return circuit
 
-            print(f"\nRider trailID: {trail_id}")
-            print(f"Rider CircuitID: {trail_name}")
-            print(f"Parent CircuitID: {parent_name}\n")
 
-            #fetch this riders own circuit info
-            payload = {"trailName": trail_name}
-            try:
-                rider_response = fetch_circuit(username, password, payload)
-                rider_trail_data = rider_response.get("trail", {})
-                rider_endpoint_info = endpoint_info(rider_trail_data)
-
-                print(f"{indent}-> Rider A-End: {rider_endpoint_info.get('aEnd_result')}")
-                print(f"{indent}-> Rider Z-End: {rider_endpoint_info.get('zEnd_result')}")
-
-                #recursive call for nested riders
-                sub_riders = rider_response.get("riderInformation", [])
-                if sub_riders:
-                    rider_info(sub_riders, username, password, seen_trail_ids, level + 1)
-
-            except Exception as e:
-                print(f"{indent}Error fetching rider circuit {trail_name}: {e}")
+    except Exception as e:
+        print(f"{indent}Error fetching circuit {trail_name}: {e}")
+        return {
+            "circuit_id":trail_name,
+            "endpoint_info": None,
+            "riders": [],
+            "error": str(e)
+        }
 
 
 def main():
@@ -121,35 +119,12 @@ def main():
     username, password = get_credentials()
 
     #Step 2: Fetch all circuit data
-    payload = {
-    "trailName": "I1002/OTU4/LNCSNYLC/WSVLNYNC"
-    }
+    cktID = "I1002/OTU4/LNCSNYLC/WSVLNYNC"
 
-    response = fetch_circuit(username, password, payload)
-    # print(json.dumps(response, indent=2))
+    circuit_tree = build_circuit_tree(cktID, username, password)
+    return [circuit_tree] if circuit_tree else []
 
-
-    trail_data = response.get("trail", {})
-
-    endp_info = endpoint_info(trail_data)
-
-    print(f"\n=== Parent Circuit ID: {payload['trailName']} ===")
-
-    #Step 3: Extract endpoint Info
-    print("\nA-End Info:")
-    for k, v in endp_info.items():
-        if k.startswith("aEnd"):
-            print(f"  {k}:  {v}")
-
-    print("Z-End Info:")
-    for k, v in endp_info.items():
-        if k.startswith("zEnd"):
-            print(f"  {k}:  {v}") 
-
-    
-    #Step 4: Recursive rider chain
-    rider_data = response.get("riderInformation", [])
-    rider_info(rider_data, username, password)
 
 if __name__ == '__main__':
-    main()
+    result = main()
+    print(json.dumps(result, indent=2))
