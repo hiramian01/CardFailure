@@ -7,7 +7,6 @@ from collections import defaultdict
 import json
 import getpass
 import cf_manager
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 from Nautilus import build_circuit_tree
